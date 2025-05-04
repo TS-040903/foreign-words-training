@@ -60,6 +60,15 @@ function updateCard() {
     }
 }
 
+function startTimer() {
+    timerInterval = setInterval(() => {
+        const elapsedTime = new Date() - startTime;
+        const seconds = Math.floor((elapsedTime / 1000) % 60);
+        const minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
+        timeSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
 function startExam() {
     studyMode.classList.add('hidden');
     examMode.classList.remove('hidden');
@@ -81,21 +90,6 @@ function startExam() {
     createExamCards();
 }
 
-function createExamCards() {
-    examCardsContainer.innerHTML = '';
-
-    const wordsToShuffle = [...words];
-    shuffleArray(wordsToShuffle);
-
-    const translationsToShuffle = wordsToShuffle.map(word => word.translation);
-    shuffleArray(translationsToShuffle);
-
-
-    for (let i = 0; i < wordsToShuffle.length; i++) {
-        createCard(wordsToShuffle[i].word, translationsToShuffle[i]);
-        createCard(translationsToShuffle[i], wordsToShuffle[i].word);
-    }
-}
 
 function createExamCards() {
     examCardsContainer.innerHTML = '';
@@ -107,14 +101,14 @@ function createExamCards() {
         cardWord.classList.add('card');
         cardWord.textContent = word.word;
         cardWord.dataset.translation = word.translation;
-        cardWord.id = word.word; // Уникальный ID для каждой карточки
+        cardWord.id = word.word;
         examCardsContainer.appendChild(cardWord);
 
         const cardTranslation = document.createElement('div');
         cardTranslation.classList.add('card');
         cardTranslation.textContent = word.translation;
         cardTranslation.dataset.translation = word.word;
-        cardTranslation.id = word.translation; // Уникальный ID для каждой карточки
+        cardTranslation.id = word.translation;
         examCardsContainer.appendChild(cardTranslation);
 
         wordStats[word.word] = 0;
@@ -124,60 +118,11 @@ function createExamCards() {
 function handleExamCardClick(event) {
     const card = event.target.closest('.card');
     if (!card || card.classList.contains('correct') || card.classList.contains('wrong') || card.classList.contains('fade-out')) return;
-    card.classList.add('selected');
+    card.classList.add('correct');
     selectedCards.push(card);
     if (selectedCards.length === 2) {
         checkMatch();
     }
-}
-
-function checkMatch() {
-    const [card1, card2] = selectedCards;
-    card1.classList.add('correct');
-    const isMatch = card1.textContent === card2.dataset.translation && card1.id != card2.id;
-
-    if (isMatch) {
-        card1.classList.add('fade-out');
-        card2.classList.add('correct', 'fade-out');
-        correctAnswers++;
-    } else {
-        card2.classList.add('wrong');
-        setTimeout(() => {
-            card2.classList.remove('wrong');
-        }, 500);
-    }
-    selectedCards = [];
-    updateExamProgress();
-
-    setTimeout(() => {
-        if (card1.classList.contains('fade-out')) {
-            card1.remove();
-        }
-        if (card2 && card2.classList.contains('fade-out')) {
-            card2.remove();
-        }
-    }, 1000);
-
-    if (examCardsContainer.querySelectorAll('.card').length === 0) {
-        stopTimer();
-        showResults();
-        alert("Поздравляем! Тестирование завершено!");
-    }
-}
-
-function updateExamProgress() {
-    const percentage = Math.round((correctAnswers / shuffledWords.length) * 100);
-    correctPercentSpan.textContent = `${percentage}%`;
-    examProgress.value = percentage;
-}
-
-function startTimer() {
-    timerInterval = setInterval(() => {
-        const elapsedTime = new Date() - startTime;
-        const seconds = Math.floor((elapsedTime / 1000) % 60);
-        const minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
-        timeSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }, 1000);
 }
 
 function stopTimer() {
@@ -202,6 +147,59 @@ function populateResults() {
         resultsList.appendChild(clone);
     }
 }
+
+function checkMatch() {
+    const [card1, card2] = selectedCards;
+    card1.classList.add('correct');
+    const isMatch = card1.textContent === card2.dataset.translation && card1.id != card2.id;
+
+    if (isMatch) {
+        card1.classList.add('fade-out');
+        card2.classList.add('correct', 'fade-out');
+        correctAnswers++;
+    } else {
+        card1.classList.add('wrong');
+        card2.classList.add('wrong');
+        setTimeout(() => {
+            card1.classList.remove('wrong', 'correct');
+            card2.classList.remove('wrong', 'correct');
+        }, 500);
+    }
+    selectedCards = [];
+    updateExamProgress();
+
+    setTimeout(() => {
+        if (card1.classList.contains('fade-out')) {
+            card1.classList.add('hidden');
+        }
+        if (card2 && card2.classList.contains('fade-out')) {
+            card2.classList.add('hidden');
+        }
+        if (examCardsContainer.querySelectorAll('.card.hidden').length === examCardsContainer.querySelectorAll('.card').length) {
+            stopTimer();
+            showResults();
+        }
+    }, 1000);
+
+
+}
+
+function updateExamProgress() {
+    const percentage = Math.round((correctAnswers / shuffledWords.length) * 100);
+    correctPercentSpan.textContent = `${percentage}%`;
+    examProgress.value = percentage;
+}
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        const elapsedTime = new Date() - startTime;
+        const seconds = Math.floor((elapsedTime / 1000) % 60);
+        const minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
+        timeSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+
 flipCard.addEventListener('click', () => {
     flipCard.classList.toggle('active');
 });
@@ -216,8 +214,9 @@ nextBtn.addEventListener('click', () => {
     updateCard();
 });
 shuffleWordsBtn.addEventListener('click', () => {
+    const originalIndex = words.indexOf(words[currentWordIndex]);
     shuffleArray(words);
-    currentWordIndex = 0;
+    currentWordIndex = words.indexOf(words[originalIndex]);
     updateCard();
 });
 
